@@ -54,7 +54,7 @@ async def get_tasks(db: AsyncSession = Depends(get_db)):
 
 @app.put("/tasks/{task_id}", response_model=TaskResponse)
 async def update_task(task_id: int, task_update:TaskUpdate, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).filter(Task.id == task_id))
+    result = await db.execute(select(Task).where(Task.id == task_id))
     db_task = result.scalar_one_or_none()
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -66,7 +66,7 @@ async def update_task(task_id: int, task_update:TaskUpdate, db: AsyncSession = D
 
 @app.delete("/tasks/{task_id}")
 async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Task).filter(Task.id == task_id))
+    result = await db.execute(select(Task).where(Task.id == task_id))
     db_task = result.scalar_one_or_none()
     if db_task is None:
         raise HTTPException(status_code=404, detail="Task not found")
