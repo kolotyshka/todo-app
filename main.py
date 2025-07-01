@@ -1,9 +1,9 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from database import get_db
 from models import Task
-from sqlalchemy import select, result_tuple
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
 
@@ -24,6 +24,11 @@ class TaskResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TaskUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    completed: bool | None = None
 
 @app.get("/")
 async def root():
@@ -46,3 +51,25 @@ async def get_tasks(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Task))
     tasks = result.scalars().all()
     return tasks
+
+@app.put("/tasks/{task_id}", response_model=TaskResponse)
+async def update_task(task_id: int, task_update:TaskUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).filter(Task.id == task_id))
+    db_task = result.scalar_one_or_none()
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    for key, value in task_update.dict(exclude_unset=True).items():
+        setattr(db_task, key, value)
+    await db.commit()
+    await db.refresh(db_task)
+    return db_task
+
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Task).filter(Task.id == task_id))
+    db_task = result.scalar_one_or_none()
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    await db.delete(db_task)
+    await db.commit()
+    return {"message": f"Task {task_id} deleted"}
